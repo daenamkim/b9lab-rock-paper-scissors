@@ -1,0 +1,13 @@
+{
+  "name": "b9lab-rock-paper-scissors",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "test": "./start-ganache.sh && yarn truffle test && ./stop-ganache.sh"
+  },
+  "dependencies": {
+    "ganache-cli": "^6.5.0",
+    "truffle": "^5.0.29",
+    "truffle-assertions": "^0.9.1"
+  }
+}
