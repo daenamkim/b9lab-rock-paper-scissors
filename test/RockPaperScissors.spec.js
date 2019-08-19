@@ -2,6 +2,10 @@ const RockPaperScissors = artifacts.require('RockPaperScissors');
 const truffleAssert = require('truffle-assertions');
 const { toBN, toWei } = web3.utils;
 
+const ROCK = 0;
+const PAPER = 1;
+const SCISSORS = 2;
+
 contract('RockPaperScissors', function(accounts) {
   const [owner, alice, bob] = accounts;
 
@@ -30,9 +34,7 @@ contract('RockPaperScissors', function(accounts) {
     assert.strictEqual(result.logs[0].args.player, alice);
     assert.strictEqual(result.logs[0].args.value.toString(), value);
 
-    const playerAlice = await rpsInstance.players(alice, {
-      from: alice
-    });
+    const playerAlice = await rpsInstance.players(alice);
     assert.strictEqual(playerAlice.toString(), value);
   });
 
@@ -56,7 +58,82 @@ contract('RockPaperScissors', function(accounts) {
     assert.strictEqual(result.logs[0].args.player, alice);
     assert.strictEqual(result.logs[0].args.value.toString(), value);
 
+    const gasPrice = await web3.eth.getGasPrice();
+    const amountGasUsed = toBN(result.receipt.gasUsed).mul(toBN(gasPrice));
     const balanceAfter = await web3.eth.getBalance(alice);
-    assert.isTrue(toBN(balanceBefore).gt(balanceAfter));
+    assert.strictEqual(
+      toBN(balanceAfter).toString(),
+      toBN(balanceBefore)
+        .add(toBN(value))
+        .sub(amountGasUsed)
+        .toString()
+    );
+  });
+
+  it('should avoid to play with insufficient values', async () => {
+    await truffleAssert.fails(
+      rpsInstance.play(alice, ROCK, bob, ROCK, { from: owner }),
+      'Each player must bet at least 100 wei before play'
+    );
+  });
+
+  it('should play successfully', async () => {
+    const value = toWei('1', 'ether');
+    await rpsInstance.enroll({ from: alice, value });
+    await rpsInstance.enroll({ from: bob, value });
+
+    // Draw
+    let result = await rpsInstance.play(alice, ROCK, bob, ROCK, {
+      from: owner
+    });
+    assert.strictEqual(result.logs[0].event, 'LogPlayed');
+    assert.strictEqual(
+      result.logs[0].args.winner,
+      '0x0000000000000000000000000000000000000000'
+    );
+    assert.strictEqual(result.logs[0].args.valueRewarded.toString(), '0');
+
+    // Winner is Alice
+    result = await rpsInstance.play(alice, PAPER, bob, ROCK, {
+      from: owner
+    });
+    assert.strictEqual(result.logs[0].event, 'LogPlayed');
+    assert.strictEqual(result.logs[0].args.winner, alice);
+    assert.strictEqual(
+      result.logs[0].args.valueRewarded.toString(),
+      toBN(value)
+        .add(toBN(value))
+        .toString()
+    );
+    let winner = await rpsInstance.winners(alice);
+    assert.strictEqual(
+      toBN(winner).toString(),
+      toBN(value)
+        .add(toBN(value))
+        .toString()
+    );
+
+    // Winner is Bob
+    await rpsInstance.enroll({ from: alice, value });
+    await rpsInstance.enroll({ from: bob, value });
+
+    result = await rpsInstance.play(alice, SCISSORS, bob, ROCK, {
+      from: owner
+    });
+    assert.strictEqual(result.logs[0].event, 'LogPlayed');
+    assert.strictEqual(result.logs[0].args.winner, bob);
+    assert.strictEqual(
+      result.logs[0].args.valueRewarded.toString(),
+      toBN(value)
+        .add(toBN(value))
+        .toString()
+    );
+    winner = await rpsInstance.winners(bob);
+    assert.strictEqual(
+      toBN(winner).toString(),
+      toBN(value)
+        .add(toBN(value))
+        .toString()
+    );
   });
 });
