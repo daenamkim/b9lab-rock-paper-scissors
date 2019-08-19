@@ -33,6 +33,30 @@ contract('RockPaperScissors', function(accounts) {
     const playerAlice = await rpsInstance.players(alice, {
       from: alice
     });
-    assert.strictEqual(playerAlice.toString(), toWei('1', 'ether'));
+    assert.strictEqual(playerAlice.toString(), value);
+  });
+
+  it('should avoid to refund for insufficient value', async () => {
+    await truffleAssert.fails(
+      rpsInstance.refund({ from: alice }),
+      'You did not enroll yet fot the game yet'
+    );
+  });
+
+  it('should refund successfully', async () => {
+    const value = toWei('1', 'ether');
+    await rpsInstance.enroll({
+      from: alice,
+      value
+    });
+
+    const balanceBefore = await web3.eth.getBalance(alice);
+    const result = await rpsInstance.refund({ from: alice });
+    assert.strictEqual(result.logs[0].event, 'LogRefunded');
+    assert.strictEqual(result.logs[0].args.player, alice);
+    assert.strictEqual(result.logs[0].args.value.toString(), value);
+
+    const balanceAfter = await web3.eth.getBalance(alice);
+    assert.isTrue(toBN(balanceBefore).gt(balanceAfter));
   });
 });
