@@ -18,7 +18,7 @@ contract RockPaperScissors is Killable {
 
     function enrol() public payable whenNotPaused whenNotKilled returns (bool) {
         require(players[msg.sender] == 0, "You cannot enroll more than once until the game is done");
-        require(msg.value >= 100, "Enroll must at least 100 weis");
+        require(msg.value >= 100, "Enroll must at least 100 wei");
 
         players[msg.sender] = msg.value;
 
@@ -39,7 +39,7 @@ contract RockPaperScissors is Killable {
 
         uint valueP1 = players[p1];
         uint valueP2 = players[p2];
-        require(valueP1 >= 100 && valueP2 >= 100, "Each player must bet at least 100 weis before play");
+        require(valueP1 >= 100 && valueP2 >= 100, "Each player must bet at least 100 wei before play");
 
         if ((choiceP1 == Choices.Rock && choiceP2 == Choices.Rock) ||
             (choiceP1 == Choices.Paper && choiceP2 == Choices.Paper) ||
