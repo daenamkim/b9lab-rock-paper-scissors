@@ -136,4 +136,43 @@ contract('RockPaperScissors', function(accounts) {
         .toString()
     );
   });
+
+  it('should avoid to withdraw for insufficient value', async () => {
+    await truffleAssert.fails(
+      rpsInstance.withdraw({ from: alice }),
+      'You have nothing to withdraw'
+    );
+  });
+
+  it('should withdraw successfully', async () => {
+    const value = toWei('1', 'ether');
+    await rpsInstance.enroll({ from: alice, value });
+    await rpsInstance.enroll({ from: bob, value });
+    await rpsInstance.play(alice, PAPER, bob, ROCK, {
+      from: owner
+    });
+    const balanceBefore = await web3.eth.getBalance(alice);
+    const result = await rpsInstance.withdraw({ from: alice });
+    assert.strictEqual(result.logs[0].event, 'LogWithdrew');
+    assert.strictEqual(result.logs[0].args.player, alice);
+
+    const reward = result.logs[0].args.value;
+    assert.strictEqual(
+      reward.toString(),
+      toBN(value)
+        .add(toBN(value))
+        .toString()
+    );
+
+    const gasPrice = await web3.eth.getGasPrice();
+    const amountGasUsed = toBN(result.receipt.gasUsed).mul(toBN(gasPrice));
+    const balanceAfter = await web3.eth.getBalance(alice);
+    assert.strictEqual(
+      toBN(balanceAfter).toString(),
+      toBN(balanceBefore)
+        .add(reward)
+        .sub(amountGasUsed)
+        .toString()
+    );
+  });
 });
