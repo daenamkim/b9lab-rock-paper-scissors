@@ -16,7 +16,7 @@ contract RockPaperScissors is Killable {
     event LogWithdrew(address indexed player, uint value);
     event LogPlayed(address indexed winner, uint valueRewarded);
 
-    function enrol() public payable whenNotPaused whenNotKilled returns (bool) {
+    function enroll() public payable whenNotPaused whenNotKilled returns (bool) {
         require(players[msg.sender] == 0, "You cannot enroll more than once until the game is done");
         require(msg.value >= 100, "Enroll must at least 100 wei");
 
