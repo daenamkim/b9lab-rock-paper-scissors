@@ -8,6 +8,9 @@ contract RockPaperScissors is Killable {
 
     mapping(address => uint) public players;
     mapping(address => uint) public winners;
+    mapping(address => uint) public commissions;
+
+    uint commission = 1000;
 
     enum Choices { Rock, Paper, Scissors }
 
@@ -15,6 +18,8 @@ contract RockPaperScissors is Killable {
     event LogRefunded(address indexed player, uint value);
     event LogWithdrew(address indexed player, uint value);
     event LogPlayed(address indexed winner, uint valueRewarded);
+    event LogCommissionSet(address indexed owner, uint newCommission);
+    event LogCommissionCollectedWithdrew(address indexed owner, uint commissionCollected);
 
     function enroll() public payable whenNotPaused whenNotKilled returns (bool) {
         require(players[msg.sender] == 0, "You cannot enroll more than once until the game is done");
@@ -86,6 +91,26 @@ contract RockPaperScissors is Killable {
 
         winners[msg.sender] = 0;
         msg.sender.transfer(value);
+
+        return true;
+    }
+
+    function withdrawCommissionCollected() public returns (bool) {
+        uint value = commissions[msg.sender];
+        require(value > 0, "No commission collected to withdraw");
+
+        emit LogCommissionCollectedWithdrew(msg.sender, value);
+
+        commissions[msg.sender] = 0;
+        msg.sender.transfer(value);
+
+        return true;
+    }
+
+    function setCommission(uint newCommission) public onlyOwner whenNotKilled returns (bool) {
+        commission = newCommission;
+
+        emit LogCommissionSet(msg.sender, newCommission);
 
         return true;
     }
