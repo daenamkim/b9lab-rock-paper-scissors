@@ -6,90 +6,169 @@ import "./SafeMath.sol";
 contract RockPaperScissors is Killable {
     using SafeMath for uint256;
 
-    mapping(address => uint) public players;
-    mapping(address => uint) public winners;
+    mapping(address => uint) public balances;
+    mapping(address => uint) public rewards;
     mapping(address => uint) public commissions;
 
     uint commission = 1000;
 
-    enum Choices { Rock, Paper, Scissors }
+    enum Choices { NotChosen, Rock, Paper, Scissors }
+    struct Room {
+        address player1;
+        bytes32 moveHashedPlayer1;
+        Choices movePlayer1;
+        address player2;
+        bytes32 moveHashedPlayer2;
+        Choices movePlayer2;
+    }
+    Room gameRoom;
 
-    event LogEnrolled(address indexed player, uint value);
+    event LogEnrolled(address indexed player, uint value, uint commission);
     event LogRefunded(address indexed player, uint value);
     event LogWithdrew(address indexed player, uint value);
+    event LogOpened(address indexed player, Choices move);
     event LogPlayed(address indexed winner, uint valueRewarded);
     event LogCommissionSet(address indexed owner, uint newCommission);
     event LogCommissionCollectedWithdrew(address indexed owner, uint commissionCollected);
 
-    function enroll() public payable whenNotPaused whenNotKilled returns (bool) {
-        require(players[msg.sender] == 0, "You cannot enroll more than once until the game is done");
-        require(msg.value >= 100, "Enroll must at least 100 wei");
+    function generateHash(Choices move, bytes32 secret) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(move, secret, msg.sender, address(this)));
+    }
 
-        players[msg.sender] = msg.value;
+    function enroll(bytes32 hashedMove) public payable whenNotPaused whenNotKilled returns (bool) {
+        address player1 = gameRoom.player1;
+        require(
+            player1 == address(0) || gameRoom.player2 == address(0),
+            "One player slot must be empty at least"
+        );
+        require(msg.value > commission, "Ether(wei) should be bigger than commission at least");
 
-        emit LogEnrolled(msg.sender, msg.value);
+        if (player1 == address(0)) {
+            gameRoom.player1 = msg.sender;
+            gameRoom.moveHashedPlayer1 = hashedMove;
+        } else {
+            if (msg.sender == player1) {
+                revert("Each player should be different");
+            }
+            gameRoom.player2 = msg.sender;
+            gameRoom.moveHashedPlayer2 = hashedMove;
+        }
+
+        address owner = getOwner();
+        uint finalValue = msg.value.sub(commission);
+        commissions[owner] = commissions[owner] + commission;
+        balances[msg.sender] = balances[msg.sender].add(finalValue);
+        emit LogEnrolled(msg.sender, finalValue, commission);
 
         return true;
     }
 
-    // Only owner can call this passing two players choices from the app.
-    // Onwer can be a system with private key outside of blockchain.
-    // And owner doesn't have any profit so players might need to pay some commission per game to the owner.
-    function play(address p1, Choices choiceP1, address p2, Choices choiceP2)
-        public
-        onlyOwner
-        whenNotPaused
-        whenNotKilled
-        returns (bool) {
+    function open(bytes32 secret) public whenNotPaused whenNotKilled returns (bool) {
+        bytes32 moveHashedPlayer1 = gameRoom.moveHashedPlayer1;
+        bytes32 moveHashedPlayer2 = gameRoom.moveHashedPlayer2;
+        require(moveHashedPlayer1 != bytes32(0) && moveHashedPlayer2 != bytes32(0), "All players should choose the move");
 
-        uint valueP1 = players[p1];
-        uint valueP2 = players[p2];
-        require(valueP1 >= 100 && valueP2 >= 100, "Each player must bet at least 100 wei before play");
+        Choices movePlayer1 = gameRoom.movePlayer1;
+        Choices movePlayer2 = gameRoom.movePlayer2;
+        require(
+            movePlayer1 == Choices.NotChosen || movePlayer2 == Choices.NotChosen,
+            "One player didn't open yet at least or game is not finished yet"
+        );
 
-        if ((choiceP1 == Choices.Rock && choiceP2 == Choices.Rock) ||
-            (choiceP1 == Choices.Paper && choiceP2 == Choices.Paper) ||
-            (choiceP1 == Choices.Scissors && choiceP2 == Choices.Scissors)) {
-            emit LogPlayed(address(0), 0);
-        } else if ((choiceP1 == Choices.Paper && choiceP2 == Choices.Rock) ||
-            (choiceP1 == Choices.Scissors && choiceP2 == Choices.Paper) ||
-            (choiceP1 == Choices.Rock && choiceP2 == Choices.Scissors)) {
-            uint reward = valueP1.add(valueP2);
-            winners[p1] = winners[p1].add(reward);
-            players[p1] = 0;
-            players[p2] = 0;
+        if (movePlayer1 == Choices.NotChosen) {
+            if (moveHashedPlayer1 == keccak256(abi.encodePacked(Choices.Rock, secret, msg.sender, address(this)))) {
+                gameRoom.movePlayer1 = Choices.Rock;
+                emit LogOpened(msg.sender, Choices.Rock);
+            } else if (moveHashedPlayer1 == keccak256(abi.encodePacked(Choices.Paper, secret, msg.sender, address(this)))) {
+                gameRoom.movePlayer1 = Choices.Paper;
+                emit LogOpened(msg.sender, Choices.Paper);
+            } else if (moveHashedPlayer1 == keccak256(abi.encodePacked(Choices.Scissors, secret, msg.sender, address(this)))) {
+                gameRoom.movePlayer1 = Choices.Scissors;
+                emit LogOpened(msg.sender, Choices.Scissors);
+            }
+        }
 
-            emit LogPlayed(p1, reward);
-        } else {
-            uint reward = valueP1.add(valueP2);
-            winners[p2] = winners[p2].add(reward);
-            players[p1] = 0;
-            players[p2] = 0;
-
-            emit LogPlayed(p2, reward);
+        if (movePlayer2 == Choices.NotChosen) {
+            if (moveHashedPlayer2 == keccak256(abi.encodePacked(Choices.Rock, secret, msg.sender, address(this)))) {
+                gameRoom.movePlayer2 = Choices.Rock;
+                emit LogOpened(msg.sender, Choices.Rock);
+            } else if (moveHashedPlayer2 == keccak256(abi.encodePacked(Choices.Paper, secret, msg.sender, address(this)))) {
+                gameRoom.movePlayer2 = Choices.Paper;
+                emit LogOpened(msg.sender, Choices.Paper);
+            } else if (moveHashedPlayer2 == keccak256(abi.encodePacked(Choices.Scissors, secret, msg.sender, address(this)))) {
+                gameRoom.movePlayer2 = Choices.Scissors;
+                emit LogOpened(msg.sender, Choices.Scissors);
+            }
         }
 
         return true;
     }
 
+    function play() public whenNotPaused whenNotKilled returns (bool) {
+        Choices movePlayer1 = gameRoom.movePlayer1;
+        Choices movePlayer2 = gameRoom.movePlayer2;
+        require(movePlayer1 != Choices.NotChosen || movePlayer2 != Choices.NotChosen, "All players should open their moves");
+
+        // Once result is draw, a user should deposit more ether to enroll next time. :)
+        if ((movePlayer1 == Choices.Rock && movePlayer2 == Choices.Rock) ||
+            (movePlayer1 == Choices.Paper && movePlayer2 == Choices.Paper) ||
+            (movePlayer1 == Choices.Scissors && movePlayer2 == Choices.Scissors)) {
+            emit LogPlayed(address(0), 0);
+
+            reset();
+
+            return true;
+        }
+
+        address player1 = gameRoom.player1;
+        address player2 = gameRoom.player2;
+        uint reward = balances[player1].add(balances[player2]);
+        balances[player1] = 0;
+        balances[player2] = 0;
+        if ((movePlayer1 == Choices.Paper && movePlayer2 == Choices.Rock) ||
+            (movePlayer1 == Choices.Scissors && movePlayer2 == Choices.Paper) ||
+            (movePlayer1 == Choices.Rock && movePlayer2 == Choices.Scissors)) {
+            rewards[player1] = reward;
+            emit LogPlayed(player1, reward);
+        } else {
+            rewards[player2] = reward;
+            emit LogPlayed(player2, reward);
+        }
+
+        reset();
+
+        return true;
+    }
+
+    function reset() private {
+        // Be a good citizen!
+        gameRoom.player1 = address(0);
+        gameRoom.moveHashedPlayer1 = bytes32(0);
+        gameRoom.movePlayer1 = Choices.NotChosen;
+        gameRoom.player2 = address(0);
+        gameRoom.moveHashedPlayer2 = bytes32(0);
+        gameRoom.movePlayer2 = Choices.NotChosen;
+    }
+
     function refund() public whenNotPaused returns (bool) {
-        uint value = players[msg.sender];
+        uint value = balances[msg.sender];
         require(value > 0, "You did not enroll yet fot the game yet");
 
         emit LogRefunded(msg.sender, value);
 
-        players[msg.sender] = 0;
+        balances[msg.sender] = 0;
         msg.sender.transfer(value);
 
         return true;
     }
 
     function withdraw() public whenNotPaused returns (bool) {
-        uint value = winners[msg.sender];
+        uint value = rewards[msg.sender];
         require(value > 0, "You have nothing to withdraw");
 
         emit LogWithdrew(msg.sender, value);
 
-        winners[msg.sender] = 0;
+        rewards[msg.sender] = 0;
         msg.sender.transfer(value);
 
         return true;
