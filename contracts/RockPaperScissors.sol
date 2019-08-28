@@ -142,12 +142,7 @@ contract RockPaperScissors is Killable {
 
     function reset() private {
         // Be a good citizen!
-        gameRoom.player1 = address(0);
-        gameRoom.moveHashedPlayer1 = bytes32(0);
-        gameRoom.movePlayer1 = Choices.NotChosen;
-        gameRoom.player2 = address(0);
-        gameRoom.moveHashedPlayer2 = bytes32(0);
-        gameRoom.movePlayer2 = Choices.NotChosen;
+        delete gameRoom;
     }
 
     function refund() public whenNotPaused returns (bool) {
