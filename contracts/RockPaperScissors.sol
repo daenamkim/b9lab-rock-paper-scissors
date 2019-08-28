@@ -13,13 +13,14 @@ contract RockPaperScissors is Killable {
     uint commission = 1000;
 
     enum Choices { NotChosen, Rock, Paper, Scissors }
+    struct Player {
+        address addr;
+        bytes32 moveHashed;
+        Choices move;
+    }
     struct Room {
-        address player1;
-        bytes32 moveHashedPlayer1;
-        Choices movePlayer1;
-        address player2;
-        bytes32 moveHashedPlayer2;
-        Choices movePlayer2;
+        Player player1;
+        Player player2;
     }
     Room gameRoom;
 
@@ -36,22 +37,22 @@ contract RockPaperScissors is Killable {
     }
 
     function enroll(bytes32 hashedMove) public payable whenNotPaused whenNotKilled returns (bool) {
-        address player1 = gameRoom.player1;
+        address player1 = gameRoom.player1.addr;
         require(
-            player1 == address(0) || gameRoom.player2 == address(0),
+            player1 == address(0) || gameRoom.player2.addr == address(0),
             "One player slot must be empty at least"
         );
         require(msg.value > commission, "Ether(wei) should be bigger than commission at least");
 
         if (player1 == address(0)) {
-            gameRoom.player1 = msg.sender;
-            gameRoom.moveHashedPlayer1 = hashedMove;
+            gameRoom.player1.addr = msg.sender;
+            gameRoom.player1.moveHashed = hashedMove;
         } else {
             if (msg.sender == player1) {
                 revert("Each player should be different");
             }
-            gameRoom.player2 = msg.sender;
-            gameRoom.moveHashedPlayer2 = hashedMove;
+            gameRoom.player2.addr = msg.sender;
+            gameRoom.player2.moveHashed = hashedMove;
         }
 
         address owner = getOwner();
@@ -64,12 +65,12 @@ contract RockPaperScissors is Killable {
     }
 
     function open(bytes32 secret) public whenNotPaused whenNotKilled returns (bool) {
-        bytes32 moveHashedPlayer1 = gameRoom.moveHashedPlayer1;
-        bytes32 moveHashedPlayer2 = gameRoom.moveHashedPlayer2;
+        bytes32 moveHashedPlayer1 = gameRoom.player1.moveHashed;
+        bytes32 moveHashedPlayer2 = gameRoom.player2.moveHashed;
         require(moveHashedPlayer1 != bytes32(0) && moveHashedPlayer2 != bytes32(0), "All players should choose the move");
 
-        Choices movePlayer1 = gameRoom.movePlayer1;
-        Choices movePlayer2 = gameRoom.movePlayer2;
+        Choices movePlayer1 = gameRoom.player1.move;
+        Choices movePlayer2 = gameRoom.player2.move;
         require(
             movePlayer1 == Choices.NotChosen || movePlayer2 == Choices.NotChosen,
             "One player didn't open yet at least or game is not finished yet"
@@ -77,26 +78,26 @@ contract RockPaperScissors is Killable {
 
         if (movePlayer1 == Choices.NotChosen) {
             if (moveHashedPlayer1 == generateHash(Choices.Rock, secret)) {
-                gameRoom.movePlayer1 = Choices.Rock;
+                gameRoom.player1.move = Choices.Rock;
                 emit LogOpened(msg.sender, Choices.Rock);
             } else if (moveHashedPlayer1 == generateHash(Choices.Paper, secret)) {
-                gameRoom.movePlayer1 = Choices.Paper;
+                gameRoom.player1.move = Choices.Paper;
                 emit LogOpened(msg.sender, Choices.Paper);
             } else if (moveHashedPlayer1 == generateHash(Choices.Scissors, secret)) {
-                gameRoom.movePlayer1 = Choices.Scissors;
+                gameRoom.player1.move = Choices.Scissors;
                 emit LogOpened(msg.sender, Choices.Scissors);
             }
         }
 
         if (movePlayer2 == Choices.NotChosen) {
             if (moveHashedPlayer2 == generateHash(Choices.Rock, secret)) {
-                gameRoom.movePlayer2 = Choices.Rock;
+                gameRoom.player2.move = Choices.Rock;
                 emit LogOpened(msg.sender, Choices.Rock);
             } else if (moveHashedPlayer2 == generateHash(Choices.Paper, secret)) {
-                gameRoom.movePlayer2 = Choices.Paper;
+                gameRoom.player2.move = Choices.Paper;
                 emit LogOpened(msg.sender, Choices.Paper);
             } else if (moveHashedPlayer2 == generateHash(Choices.Scissors, secret)) {
-                gameRoom.movePlayer2 = Choices.Scissors;
+                gameRoom.player2.move = Choices.Scissors;
                 emit LogOpened(msg.sender, Choices.Scissors);
             }
         }
@@ -105,8 +106,8 @@ contract RockPaperScissors is Killable {
     }
 
     function play() public whenNotPaused whenNotKilled returns (bool) {
-        Choices movePlayer1 = gameRoom.movePlayer1;
-        Choices movePlayer2 = gameRoom.movePlayer2;
+        Choices movePlayer1 = gameRoom.player1.move;
+        Choices movePlayer2 = gameRoom.player2.move;
         require(movePlayer1 != Choices.NotChosen || movePlayer2 != Choices.NotChosen, "All players should open their moves");
 
         // Once result is draw, a user should deposit more ether to enroll next time. :)
@@ -120,8 +121,8 @@ contract RockPaperScissors is Killable {
             return true;
         }
 
-        address player1 = gameRoom.player1;
-        address player2 = gameRoom.player2;
+        address player1 = gameRoom.player1.addr;
+        address player2 = gameRoom.player2.addr;
         uint reward = balances[player1].add(balances[player2]);
         balances[player1] = 0;
         balances[player2] = 0;
