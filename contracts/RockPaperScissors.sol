@@ -128,10 +128,10 @@ contract RockPaperScissors is Killable {
         if ((movePlayer1 == Choices.Paper && movePlayer2 == Choices.Rock) ||
             (movePlayer1 == Choices.Scissors && movePlayer2 == Choices.Paper) ||
             (movePlayer1 == Choices.Rock && movePlayer2 == Choices.Scissors)) {
-            rewards[player1] = reward;
+            rewards[player1] = rewards[player1].add(reward);
             emit LogPlayed(player1, reward);
         } else {
-            rewards[player2] = reward;
+            rewards[player2] = rewards[player2].add(reward);
             emit LogPlayed(player2, reward);
         }
 
