@@ -56,7 +56,7 @@ contract RockPaperScissors is Killable {
 
         address owner = getOwner();
         uint finalValue = msg.value.sub(commission);
-        commissions[owner] = commissions[owner] + commission;
+        commissions[owner] = commissions[owner].add(commission);
         balances[msg.sender] = balances[msg.sender].add(finalValue);
         emit LogEnrolled(msg.sender, finalValue, commission);
 
