@@ -41,12 +41,14 @@ contract RockPaperScissors is Killable {
     function enroll(bytes32 hashedMove) public payable whenNotPaused whenNotKilled returns (bool) {
         require(msg.value > commission, "Ether(wei) should be bigger than commission at least");
 
+        uint finalValue = msg.value.sub(commission);
         address player1 = gameRoom.player1.addr;
         if (player1 == address(0)) {
             gameRoom.player1.addr = msg.sender;
             gameRoom.player1.moveHashed = hashedMove;
         } else if (gameRoom.player2.addr == address(0)) {
             require(msg.sender != player1, "A player2 should be different from a player1");
+            require(finalValue >= balances[gameRoom.player1.addr], "A player2 bet same or greater money than player1 has");
             gameRoom.player2.addr = msg.sender;
             gameRoom.player2.moveHashed = hashedMove;
         } else {
@@ -54,7 +56,6 @@ contract RockPaperScissors is Killable {
         }
 
         address owner = getOwner();
-        uint finalValue = msg.value.sub(commission);
         commissions[owner] = commissions[owner].add(commission);
         balances[msg.sender] = balances[msg.sender].add(finalValue);
         emit LogEnrolled(msg.sender, finalValue, commission);
