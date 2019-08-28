@@ -33,6 +33,8 @@ contract RockPaperScissors is Killable {
     event LogCommissionCollectedWithdrew(address indexed owner, uint commissionCollected);
 
     function generateHash(Choices move, bytes32 secret) public view returns (bytes32) {
+        require(move != Choices.NotChosen, "Should be chosen as the right");
+
         return keccak256(abi.encodePacked(move, secret, msg.sender, address(this)));
     }
 
