@@ -76,26 +76,26 @@ contract RockPaperScissors is Killable {
         );
 
         if (movePlayer1 == Choices.NotChosen) {
-            if (moveHashedPlayer1 == keccak256(abi.encodePacked(Choices.Rock, secret, msg.sender, address(this)))) {
+            if (moveHashedPlayer1 == generateHash(Choices.Rock, secret)) {
                 gameRoom.movePlayer1 = Choices.Rock;
                 emit LogOpened(msg.sender, Choices.Rock);
-            } else if (moveHashedPlayer1 == keccak256(abi.encodePacked(Choices.Paper, secret, msg.sender, address(this)))) {
+            } else if (moveHashedPlayer1 == generateHash(Choices.Paper, secret)) {
                 gameRoom.movePlayer1 = Choices.Paper;
                 emit LogOpened(msg.sender, Choices.Paper);
-            } else if (moveHashedPlayer1 == keccak256(abi.encodePacked(Choices.Scissors, secret, msg.sender, address(this)))) {
+            } else if (moveHashedPlayer1 == generateHash(Choices.Scissors, secret)) {
                 gameRoom.movePlayer1 = Choices.Scissors;
                 emit LogOpened(msg.sender, Choices.Scissors);
             }
         }
 
         if (movePlayer2 == Choices.NotChosen) {
-            if (moveHashedPlayer2 == keccak256(abi.encodePacked(Choices.Rock, secret, msg.sender, address(this)))) {
+            if (moveHashedPlayer2 == generateHash(Choices.Rock, secret)) {
                 gameRoom.movePlayer2 = Choices.Rock;
                 emit LogOpened(msg.sender, Choices.Rock);
-            } else if (moveHashedPlayer2 == keccak256(abi.encodePacked(Choices.Paper, secret, msg.sender, address(this)))) {
+            } else if (moveHashedPlayer2 == generateHash(Choices.Paper, secret)) {
                 gameRoom.movePlayer2 = Choices.Paper;
                 emit LogOpened(msg.sender, Choices.Paper);
-            } else if (moveHashedPlayer2 == keccak256(abi.encodePacked(Choices.Scissors, secret, msg.sender, address(this)))) {
+            } else if (moveHashedPlayer2 == generateHash(Choices.Scissors, secret)) {
                 gameRoom.movePlayer2 = Choices.Scissors;
                 emit LogOpened(msg.sender, Choices.Scissors);
             }
