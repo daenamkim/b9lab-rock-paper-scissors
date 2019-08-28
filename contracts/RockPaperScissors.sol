@@ -39,22 +39,18 @@ contract RockPaperScissors is Killable {
     }
 
     function enroll(bytes32 hashedMove) public payable whenNotPaused whenNotKilled returns (bool) {
-        address player1 = gameRoom.player1.addr;
-        require(
-            player1 == address(0) || gameRoom.player2.addr == address(0),
-            "One player slot must be empty at least"
-        );
         require(msg.value > commission, "Ether(wei) should be bigger than commission at least");
 
+        address player1 = gameRoom.player1.addr;
         if (player1 == address(0)) {
             gameRoom.player1.addr = msg.sender;
             gameRoom.player1.moveHashed = hashedMove;
-        } else {
-            if (msg.sender == player1) {
-                revert("Each player should be different");
-            }
+        } else if (gameRoom.player2.addr == address(0)) {
+            require(msg.sender != player1, "A player2 should be different from a player1");
             gameRoom.player2.addr = msg.sender;
             gameRoom.player2.moveHashed = hashedMove;
+        } else {
+            revert("A game room is full now");
         }
 
         address owner = getOwner();
