@@ -43,12 +43,20 @@ contract RockPaperScissors is Killable {
 
         uint finalValue = msg.value.sub(commission);
         address player1 = gameRoom.player1.addr;
+        address player2 = gameRoom.player2.addr;
         if (player1 == address(0)) {
+            // Case of player1 refrund and the other enroll later
+            if (player2 != address(0)) {
+                require(
+                    finalValue >= balances[player2],
+                    "Betting money should be same or greater money than the other has"
+                );
+            }
             gameRoom.player1.addr = msg.sender;
             gameRoom.player1.moveHashed = hashedMove;
-        } else if (gameRoom.player2.addr == address(0)) {
+        } else if (player2 == address(0)) {
             require(msg.sender != player1, "A player2 should be different from a player1");
-            require(finalValue >= balances[gameRoom.player1.addr], "A player2 bet same or greater money than player1 has");
+            require(finalValue >= balances[player1], "Betting money should be same or greater money than the other has");
             gameRoom.player2.addr = msg.sender;
             gameRoom.player2.moveHashed = hashedMove;
         } else {
@@ -148,6 +156,21 @@ contract RockPaperScissors is Killable {
     function refund() public whenNotPaused returns (bool) {
         uint value = balances[msg.sender];
         require(value > 0, "You did not enroll yet fot the game yet");
+
+        // If one of players has already opened, cannot refund
+        if (msg.sender == gameRoom.player1.addr) {
+            require(
+                gameRoom.player1.move == Choices.NotChosen && gameRoom.player2.move == Choices.NotChosen,
+                "Cannot refund because one of player has already opened"
+            );
+            delete gameRoom.player1;
+        } else if (msg.sender == gameRoom.player2.addr) {
+            require(
+                gameRoom.player1.move == Choices.NotChosen && gameRoom.player2.move == Choices.NotChosen,
+                "Cannot refund because one of player has already opened"
+            );
+            delete gameRoom.player2;
+        }
 
         emit LogRefunded(msg.sender, value);
 
