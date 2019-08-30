@@ -6,9 +6,12 @@ import "./SafeMath.sol";
 contract RockPaperScissors is Killable {
     using SafeMath for uint256;
 
-    mapping(address => uint) public balances;
-    mapping(address => uint) public rewards;
-    mapping(address => uint) public commissions;
+    struct Wallet {
+        uint balance;
+        uint reward;
+        uint commission;
+    }
+    mapping(address => Wallet) public wallets;
 
     uint commission = 1000;
 
@@ -53,7 +56,7 @@ contract RockPaperScissors is Killable {
             // Case of player1 refrund and the other enroll later
             if (player2 != address(0)) {
                 require(
-                    finalValue >= balances[player2],
+                    finalValue >= wallets[player2].balance,
                     "Betting money should be same or greater money than the other has"
                 );
             }
@@ -61,7 +64,7 @@ contract RockPaperScissors is Killable {
             gameRoom.player1.moveHashed = hashedMove;
         } else if (player2 == address(0)) {
             require(msg.sender != player1, "A player2 should be different from a player1");
-            require(finalValue >= balances[player1], "Betting money should be same or greater money than the other has");
+            require(finalValue >= wallets[player1].balance, "Betting money should be same or greater money than the other has");
             gameRoom.player2.addr = msg.sender;
             gameRoom.player2.moveHashed = generateHashByTimestamp(hashedMove, timestamp);
         } else {
@@ -69,8 +72,8 @@ contract RockPaperScissors is Killable {
         }
 
         address owner = getOwner();
-        commissions[owner] = commissions[owner].add(commission);
-        balances[msg.sender] = balances[msg.sender].add(finalValue);
+        wallets[owner].commission = wallets[owner].commission.add(commission);
+        wallets[msg.sender].balance = wallets[msg.sender].balance.add(finalValue);
         emit LogEnrolled(msg.sender, finalValue, commission, timestamp);
 
         return true;
@@ -135,16 +138,16 @@ contract RockPaperScissors is Killable {
 
         address player1 = gameRoom.player1.addr;
         address player2 = gameRoom.player2.addr;
-        uint reward = balances[player1].add(balances[player2]);
-        balances[player1] = 0;
-        balances[player2] = 0;
+        uint reward = wallets[player1].balance.add(wallets[player2].balance);
+        wallets[player1].balance = 0;
+        wallets[player2].balance = 0;
         if ((movePlayer1 == Choices.Paper && movePlayer2 == Choices.Rock) ||
             (movePlayer1 == Choices.Scissors && movePlayer2 == Choices.Paper) ||
             (movePlayer1 == Choices.Rock && movePlayer2 == Choices.Scissors)) {
-            rewards[player1] = rewards[player1].add(reward);
+            wallets[player1].reward = wallets[player1].reward.add(reward);
             emit LogPlayed(player1, reward);
         } else {
-            rewards[player2] = rewards[player2].add(reward);
+            wallets[player2].reward = wallets[player2].reward.add(reward);
             emit LogPlayed(player2, reward);
         }
 
@@ -159,7 +162,7 @@ contract RockPaperScissors is Killable {
     }
 
     function refund() public whenNotPaused returns (bool) {
-        uint value = balances[msg.sender];
+        uint value = wallets[msg.sender].balance;
         require(value > 0, "You did not enroll yet fot the game yet");
 
         // If one of players has already opened, cannot refund
@@ -179,31 +182,31 @@ contract RockPaperScissors is Killable {
 
         emit LogRefunded(msg.sender, value);
 
-        balances[msg.sender] = 0;
+        wallets[msg.sender].balance = 0;
         msg.sender.transfer(value);
 
         return true;
     }
 
     function withdraw() public whenNotPaused returns (bool) {
-        uint value = rewards[msg.sender];
+        uint value = wallets[msg.sender].reward;
         require(value > 0, "You have nothing to withdraw");
 
         emit LogWithdrew(msg.sender, value);
 
-        rewards[msg.sender] = 0;
+        wallets[msg.sender].reward = 0;
         msg.sender.transfer(value);
 
         return true;
     }
 
     function withdrawCommissionCollected() public returns (bool) {
-        uint value = commissions[msg.sender];
+        uint value = wallets[msg.sender].commission;
         require(value > 0, "No commission collected to withdraw");
 
         emit LogCommissionCollectedWithdrew(msg.sender, value);
 
-        commissions[msg.sender] = 0;
+        wallets[msg.sender].commission = 0;
         msg.sender.transfer(value);
 
         return true;
