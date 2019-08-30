@@ -24,7 +24,7 @@ contract RockPaperScissors is Killable {
     }
     Room gameRoom;
 
-    event LogEnrolled(address indexed player, uint value, uint commission);
+    event LogEnrolled(address indexed player, uint value, uint commission, uint timestamp);
     event LogRefunded(address indexed player, uint value);
     event LogWithdrew(address indexed player, uint value);
     event LogOpened(address indexed player, Choices move);
@@ -32,10 +32,14 @@ contract RockPaperScissors is Killable {
     event LogCommissionSet(address indexed owner, uint newCommission);
     event LogCommissionCollectedWithdrew(address indexed owner, uint commissionCollected);
 
-    function generateHash(Choices move, bytes32 secret) public view returns (bytes32) {
+    function generateHashBySecret(Choices move, bytes32 secret) public view returns (bytes32) {
         require(move != Choices.NotChosen, "Should be chosen as the right");
 
         return keccak256(abi.encodePacked(move, secret, msg.sender, address(this)));
+    }
+
+    function generateHashByTimestamp(bytes32 value, uint timestamp) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(value, timestamp, address(this)));
     }
 
     function enroll(bytes32 hashedMove) public payable whenNotPaused whenNotKilled returns (bool) {
@@ -44,6 +48,7 @@ contract RockPaperScissors is Killable {
         uint finalValue = msg.value.sub(commission);
         address player1 = gameRoom.player1.addr;
         address player2 = gameRoom.player2.addr;
+        uint timestamp = block.timestamp;
         if (player1 == address(0)) {
             // Case of player1 refrund and the other enroll later
             if (player2 != address(0)) {
@@ -58,7 +63,7 @@ contract RockPaperScissors is Killable {
             require(msg.sender != player1, "A player2 should be different from a player1");
             require(finalValue >= balances[player1], "Betting money should be same or greater money than the other has");
             gameRoom.player2.addr = msg.sender;
-            gameRoom.player2.moveHashed = hashedMove;
+            gameRoom.player2.moveHashed = generateHashByTimestamp(hashedMove, timestamp);
         } else {
             revert("A game room is full now");
         }
@@ -66,12 +71,12 @@ contract RockPaperScissors is Killable {
         address owner = getOwner();
         commissions[owner] = commissions[owner].add(commission);
         balances[msg.sender] = balances[msg.sender].add(finalValue);
-        emit LogEnrolled(msg.sender, finalValue, commission);
+        emit LogEnrolled(msg.sender, finalValue, commission, timestamp);
 
         return true;
     }
 
-    function open(bytes32 secret) public whenNotPaused whenNotKilled returns (bool) {
+    function open(bytes32 secret, uint timestamp) public whenNotPaused whenNotKilled returns (bool) {
         bytes32 moveHashedPlayer1 = gameRoom.player1.moveHashed;
         bytes32 moveHashedPlayer2 = gameRoom.player2.moveHashed;
         require(moveHashedPlayer1 != bytes32(0) && moveHashedPlayer2 != bytes32(0), "All players should choose the move");
@@ -84,26 +89,26 @@ contract RockPaperScissors is Killable {
         );
 
         if (movePlayer1 == Choices.NotChosen) {
-            if (moveHashedPlayer1 == generateHash(Choices.Rock, secret)) {
+            if (moveHashedPlayer1 == generateHashByTimestamp(generateHashBySecret(Choices.Rock, secret), timestamp)) {
                 gameRoom.player1.move = Choices.Rock;
                 emit LogOpened(msg.sender, Choices.Rock);
-            } else if (moveHashedPlayer1 == generateHash(Choices.Paper, secret)) {
+            } else if (moveHashedPlayer1 == generateHashByTimestamp(generateHashBySecret(Choices.Paper, secret), timestamp)) {
                 gameRoom.player1.move = Choices.Paper;
                 emit LogOpened(msg.sender, Choices.Paper);
-            } else if (moveHashedPlayer1 == generateHash(Choices.Scissors, secret)) {
+            } else if (moveHashedPlayer1 == generateHashByTimestamp(generateHashBySecret(Choices.Scissors, secret), timestamp)) {
                 gameRoom.player1.move = Choices.Scissors;
                 emit LogOpened(msg.sender, Choices.Scissors);
             }
         }
 
         if (movePlayer2 == Choices.NotChosen) {
-            if (moveHashedPlayer2 == generateHash(Choices.Rock, secret)) {
+            if (moveHashedPlayer2 == generateHashByTimestamp(generateHashBySecret(Choices.Rock, secret), timestamp)) {
                 gameRoom.player2.move = Choices.Rock;
                 emit LogOpened(msg.sender, Choices.Rock);
-            } else if (moveHashedPlayer2 == generateHash(Choices.Paper, secret)) {
+            } else if (moveHashedPlayer2 == generateHashByTimestamp(generateHashBySecret(Choices.Paper, secret), timestamp)) {
                 gameRoom.player2.move = Choices.Paper;
                 emit LogOpened(msg.sender, Choices.Paper);
-            } else if (moveHashedPlayer2 == generateHash(Choices.Scissors, secret)) {
+            } else if (moveHashedPlayer2 == generateHashByTimestamp(generateHashBySecret(Choices.Scissors, secret), timestamp)) {
                 gameRoom.player2.move = Choices.Scissors;
                 emit LogOpened(msg.sender, Choices.Scissors);
             }
