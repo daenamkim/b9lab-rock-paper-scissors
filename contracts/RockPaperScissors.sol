@@ -46,7 +46,7 @@ contract RockPaperScissors is Killable {
     }
 
     function enroll(bytes32 hashedMove) public payable whenNotPaused whenNotKilled returns (bool) {
-        require(msg.value > commission, "Ether(wei) should be bigger than commission at least");
+        require(msg.value >= commission, "Money should be equal or bigger than commission");
 
         uint finalValue = msg.value.sub(commission);
         address player1 = gameRoom.player1.addr;
