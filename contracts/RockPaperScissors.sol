@@ -61,7 +61,7 @@ contract RockPaperScissors is Killable {
                 );
             }
             gameRoom.player1.addr = msg.sender;
-            gameRoom.player1.moveHashed = hashedMove;
+            gameRoom.player1.moveHashed = generateHashByTimestamp(hashedMove, timestamp);
         } else if (player2 == address(0)) {
             require(msg.sender != player1, "A player2 should be different from a player1");
             require(finalValue >= wallets[player1].balance, "Betting money should be same or greater money than the other has");
