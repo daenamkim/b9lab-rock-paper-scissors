@@ -74,42 +74,21 @@ contract RockPaperScissors is Killable {
         return true;
     }
 
-    function open(bytes32 secret) public whenNotPaused whenNotKilled returns (bool) {
+    function open(Choices move, bytes32 secret) public whenNotPaused whenNotKilled returns (bool) {
         bytes32 moveHashedPlayer1 = gameRoom.player1.moveHashed;
         bytes32 moveHashedPlayer2 = gameRoom.player2.moveHashed;
-        require(moveHashedPlayer1 != bytes32(0) && moveHashedPlayer2 != bytes32(0), "All players should choose the move");
+        require(moveHashedPlayer1 != bytes32(0) && moveHashedPlayer2 != bytes32(0), "All players should enroll first");
 
         Choices movePlayer1 = gameRoom.player1.move;
         Choices movePlayer2 = gameRoom.player2.move;
-        require(
-            movePlayer1 == Choices.NotChosen || movePlayer2 == Choices.NotChosen,
-            "One player didn't open yet at least or game is not finished yet"
-        );
 
-        if (movePlayer1 == Choices.NotChosen) {
-            if (moveHashedPlayer1 == generateHashBySecret(Choices.Rock, secret)) {
-                gameRoom.player1.move = Choices.Rock;
-                emit LogOpened(msg.sender, Choices.Rock);
-            } else if (moveHashedPlayer1 == generateHashBySecret(Choices.Paper, secret)) {
-                gameRoom.player1.move = Choices.Paper;
-                emit LogOpened(msg.sender, Choices.Paper);
-            } else if (moveHashedPlayer1 == generateHashBySecret(Choices.Scissors, secret)) {
-                gameRoom.player1.move = Choices.Scissors;
-                emit LogOpened(msg.sender, Choices.Scissors);
-            }
-        }
-
-        if (movePlayer2 == Choices.NotChosen) {
-            if (moveHashedPlayer2 == generateHashBySecret(Choices.Rock, secret)) {
-                gameRoom.player2.move = Choices.Rock;
-                emit LogOpened(msg.sender, Choices.Rock);
-            } else if (moveHashedPlayer2 == generateHashBySecret(Choices.Paper, secret)) {
-                gameRoom.player2.move = Choices.Paper;
-                emit LogOpened(msg.sender, Choices.Paper);
-            } else if (moveHashedPlayer2 == generateHashBySecret(Choices.Scissors, secret)) {
-                gameRoom.player2.move = Choices.Scissors;
-                emit LogOpened(msg.sender, Choices.Scissors);
-            }
+        bytes32 movedHashed = generateHashBySecret(move, secret)
+        if (movePlayer1 == Choices.NotChosen && moveHashedPlayer1 == movedHashed) {
+            gameRoom.player1.move = move;
+        } else if (movePlayer2 == Choices.NotChosen && moveHashedPlayer2 == movedHashed) {
+            gameRoom.player2.move = move;
+        } else {
+            revert("There is nothing to opengs");
         }
 
         return true;
